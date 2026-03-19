@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workday-Lite | Multi-Tenant SaaS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .active-tab { background-color: #003566; border-left: 4px solid #f97316; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- MODULE 1: HCM (Employee Directory) ---
+        const HCMModule = () => (
+            <div className="animate-fadeIn">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-slate-800">Employee Directory (HCM)</h2>
+                    <button className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-blue-700">+ Add Employee</button>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Name</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Role</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Department</th>
+                                <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                            {[ 
+                                { name: "Alex Rivera", role: "Software Engineer", dept: "Engineering", status: "Active" },
+                                { name: "Sarah Chen", role: "HR Manager", dept: "People", status: "Active" },
+                                { name: "Jordan Smith", role: "Accountant", dept: "Finance", status: "On Leave" }
+                            ].map((emp, i) => (
+                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-slate-900">{emp.name}</td>
+                                    <td className="px-6 py-4 text-slate-600">{emp.role}</td>
+                                    <td className="px-6 py-4 text-slate-600">{emp.dept}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${emp.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                            {emp.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+
+        // --- MODULE 2: Absence (PTO Tracking) ---
+        const AbsenceModule = () => (
+            <div className="animate-fadeIn text-slate-800">
+                <h2 className="text-2xl font-bold mb-6">Absence & Time Off</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <p className="text-sm text-slate-500 mb-1">Vacation Balance</p>
+                        <p className="text-3xl font-bold text-blue-600">14 Days</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <p className="text-sm text-slate-500 mb-1">Sick Leave Used</p>
+                        <p className="text-3xl font-bold text-slate-800">2 Days</p>
+                    </div>
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                        <p className="text-sm text-slate-500 mb-1">Pending Approvals</p>
+                        <p className="text-3xl font-bold text-orange-500">3</p>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-center text-slate-400 py-20">
+                    Interactive Calendar View - To be hydrated by Supabase
+                </div>
+            </div>
+        );
+
+        // --- MODULE 3: Timekeeping ---
+        const TimekeepingModule = () => (
+            <div className="animate-fadeIn">
+                <h2 className="text-2xl font-bold text-slate-800 mb-6">Time & Attendance</h2>
+                <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+                    <div className="text-4xl font-mono font-bold mb-4 text-slate-700">09:41 AM</div>
+                    <div className="flex gap-4">
+                        <button className="bg-green-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-green-700 transition-all shadow-md">Clock In</button>
+                        <button className="bg-slate-200 text-slate-600 px-8 py-3 rounded-lg font-bold cursor-not-allowed">Clock Out</button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- MODULE 4: Payroll & QuickBooks Sync ---
+        const PayrollModule = () => (
+            <div className="animate-fadeIn">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-slate-800">Payroll Processing</h2>
+                    <button className="bg-[#2ca01c] text-white px-4 py-2 rounded-md text-sm font-bold flex items-center hover:bg-green-700">
+                        <i data-lucide="refresh-cw" className="w-4 h-4 mr-2"></i> Sync to QuickBooks
+                    </button>
+                </div>
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg mb-6 flex items-start">
+                    <i data-lucide="info" className="w-5 h-5 text-amber-600 mr-3 mt-0.5"></i>
+                    <p className="text-sm text-amber-800">There are 12 un-synced timesheet entries ready for the next QuickBooks Journal Entry.</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-400 font-medium">
+                   Payroll Calculation Engine Table
+                </div>
+            </div>
+        );
+
+        // --- MAIN APP COMPONENT ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('HCM');
+
+            // Initialize icons after render
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [activeTab]);
+
+            return (
+                <div className="flex h-screen overflow-hidden">
+                    {/* Sidebar */}
+                    <aside className="w-64 bg-[#004b8d] text-white flex flex-col shrink-0">
+                        <div className="p-6 text-xl font-bold flex items-center gap-2 border-b border-blue-800/50">
+                            <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center font-black">W</div>
+                            Workday-Lite
+                        </div>
+                        <nav className="flex-1 mt-6">
+                            {[
+                                { id: 'HCM', icon: 'users', label: 'HCM' },
+                                { id: 'Absence', icon: 'calendar', label: 'Absence' },
+                                { id: 'Time', icon: 'clock', label: 'Timekeeping' },
+                                { id: 'Payroll', icon: 'credit-card', label: 'Payroll' }
+                            ].map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`w-full flex items-center px-6 py-4 text-sm font-medium transition-all ${activeTab === item.id ? 'active-tab text-white' : 'text-blue-100 hover:bg-blue-800/50 hover:text-white'}`}
+                                >
+                                    <i data-lucide={item.icon} className="w-5 h-5 mr-3"></i>
+                                    {item.label}
+                                </button>
+                            ))}
+                        </nav>
+                        <div className="p-6 border-t border-blue-800/50 space-y-4">
+                            <button className="flex items-center text-xs text-blue-200 hover:text-white">
+                                <i data-lucide="settings" className="w-4 h-4 mr-2"></i> Settings
+                            </button>
+                            <button className="flex items-center text-xs text-red-300 hover:text-red-100">
+                                <i data-lucide="log-out" className="w-4 h-4 mr-2"></i> Logout
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 flex flex-col min-w-0 bg-slate-50">
+                        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+                            <div className="flex items-center text-sm font-medium text-slate-500">
+                                <span className="mr-2">Tenant:</span>
+                                <span className="bg-slate-100 px-2 py-1 rounded text-slate-900 font-bold border border-slate-200">ACME_INDUSTRIES_01</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center bg-green-50 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-200">
+                                    QB Connected
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-600 font-bold">JD</div>
+                            </div>
+                        </header>
+
+                        <main className="p-8 flex-1 overflow-y-auto">
+                            {activeTab === 'HCM' && <HCMModule />}
+                            {activeTab === 'Absence' && <AbsenceModule />}
+                            {activeTab === 'Time' && <TimekeepingModule />}
+                            {activeTab === 'Payroll' && <PayrollModule />}
+                        </main>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
