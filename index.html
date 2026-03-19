@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alpine Core | Enterprise Admin Suite</title>
+    <title>Alpine Core | Staffing Operations PoC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #0f172a; }
-        .alpine-nav-active { background: #0f172a; border-left: 4px solid #38bdf8; color: white !important; }
-        .glass-sidebar { background: #1e293b; border-right: 1px solid #334155; }
-        .punch-btn { transition: all 0.2s; border: 1px solid #e2e8f0; }
-        .punch-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .punch-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #f1f5f9; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f4f7fa; color: #1a202c; }
+        .sidebar-gradient { background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); }
+        .active-link { background: rgba(56, 189, 248, 0.15); border-left: 4px solid #38bdf8; color: white !important; }
+        .punch-card { border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .punch-card:hover:not(:disabled) { border-color: #38bdf8; transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .status-pill { font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 2px 8px; border-radius: 9999px; }
     </style>
 </head>
 <body>
@@ -24,119 +24,112 @@
         const { useState, useEffect } = React;
 
         function App() {
-            const [activeTab, setActiveTab] = useState('Time');
+            const [view, setView] = useState('Time');
             
-            // --- STATE: LEAVE/ABSENCE ---
-            const [leaves, setLeaves] = useState([
-                { id: 1, staff: "Sarah Miller", type: "Vacation", start: "2026-03-20", end: "2026-03-22", status: "Approved" }
+            // --- DATA STORE (Mocking Supabase) ---
+            const [staff, setStaff] = useState([
+                { id: 1, name: "Sarah Miller", role: "VA - Level 2", rate: 25, activeHours: 42, leaveDays: 1 },
+                { id: 2, name: "Marcus Wright", role: "Ops Manager", rate: 40, activeHours: 38, leaveDays: 0 }
             ]);
 
-            // --- STATE: TIMEKEEPING (6-Point Clock) ---
-            const [clockStatus, setClockStatus] = useState('Out'); // Out, In, Break, Lunch
-            const [logs, setLogs] = useState([]);
-            const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+            const [punches, setPunches] = useState([]);
+            const [clockState, setClockState] = useState('OUT'); // OUT, IN, BREAK, LUNCH
+            const [leaves, setLeaves] = useState([
+                { id: 101, type: "Sick Leave", date: "2026-03-19", status: "Approved" }
+            ]);
 
-            useEffect(() => {
-                const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
-                window.lucide?.createIcons();
-                return () => clearInterval(timer);
-            }, [activeTab, clockStatus, leaves]);
+            useEffect(() => { window.lucide?.createIcons(); }, [view, clockState, punches, leaves]);
 
-            const handlePunch = (type) => {
-                const entry = { id: Date.now(), type, time: new Date().toLocaleTimeString() };
-                setLogs([entry, ...logs]);
-                setClockStatus(type.includes('Out') || type === 'Out' ? 'Out' : type.split(' ')[0]);
-                if (type === 'Out') setClockStatus('Out');
+            // --- LOGIC: TIMEKEEPING ENGINE ---
+            const triggerPunch = (action) => {
+                const now = new Date();
+                const newPunch = { id: Date.now(), action, time: now.toLocaleTimeString(), date: now.toLocaleDateString() };
+                setPunches([newPunch, ...punches]);
+                
+                // Logic to update clock state
+                if (action === 'IN' || action === 'BREAK OUT' || action === 'LUNCH OUT') setClockState('IN');
+                else if (action === 'BREAK IN') setClockState('BREAK');
+                else if (action === 'LUNCH IN') setClockState('LUNCH');
+                else setClockState('OUT');
             };
 
-            const fileLeave = () => {
-                const type = prompt("Leave Type (Vacation/Sick/Personal):");
-                if (type) setLeaves([{ id: Date.now(), staff: "Admin User", type, start: "2026-04-01", end: "2026-04-02", status: "Pending" }, ...leaves]);
+            // --- LOGIC: PAYROLL CALCULATION ---
+            const calculatePay = (rate, hours, leaveDays) => {
+                // Deduction: 8 hours pay per leave day
+                return (hours * rate) - (leaveDays * 8 * rate);
             };
 
             return (
-                <div className="flex h-screen overflow-hidden">
+                <div className="flex h-screen">
                     {/* SIDEBAR */}
-                    <aside className="w-72 glass-sidebar text-slate-400 flex flex-col shrink-0 shadow-2xl">
-                        <div className="p-8 border-b border-slate-700/50 flex items-center gap-3">
-                            <div className="h-10 w-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/30">
-                                <i data-lucide="mountain" className="text-white w-6 h-6"></i>
-                            </div>
-                            <div>
-                                <h1 className="text-white font-extrabold tracking-tight text-lg uppercase">Alpine Core</h1>
-                                <p className="text-[10px] text-sky-400 font-black tracking-widest">SUB: ALPINE VIRTUAL</p>
+                    <aside className="w-64 sidebar-gradient text-slate-400 flex flex-col shrink-0">
+                        <div className="p-6 border-b border-slate-700/50 mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 bg-sky-500 rounded flex items-center justify-center font-black text-white">A</div>
+                                <div>
+                                    <h1 className="text-white font-bold text-sm tracking-tight">ALPINE CORE</h1>
+                                    <p className="text-[9px] text-sky-400 font-bold uppercase tracking-widest">PoC v4.0</p>
+                                </div>
                             </div>
                         </div>
-                        <nav className="flex-1 p-4 space-y-2 mt-4">
-                            {[
-                                { id: 'HCM', icon: 'users', label: 'HCM Portal' },
-                                { id: 'Absence', icon: 'calendar-off', label: 'Leave & Absence' },
-                                { id: 'Time', icon: 'timer', label: 'Shift Timekeeping' },
-                                { id: 'Payroll', icon: 'banknote', label: 'Payroll & QB' }
-                            ].map(item => (
-                                <button key={item.id} onClick={() => setActiveTab(item.id)}
-                                    className={`w-full flex items-center px-4 py-3.5 rounded-xl text-sm font-bold transition-all ${activeTab === item.id ? 'alpine-nav-active' : 'hover:bg-white/5 hover:text-slate-100'}`}>
-                                    <i data-lucide={item.icon} className="w-4 h-4 mr-3"></i> {item.label}
+                        <nav className="flex-1 px-2 space-y-1">
+                            {['HCM', 'Absence', 'Time', 'Payroll'].map(item => (
+                                <button key={item} onClick={() => setView(item)}
+                                    className={`w-full flex items-center px-4 py-3 rounded-lg text-xs font-bold transition-all ${view === item ? 'active-link' : 'hover:bg-white/5 hover:text-slate-200'}`}>
+                                    <i data-lucide={item === 'Time' ? 'clock' : item === 'HCM' ? 'users' : item === 'Absence' ? 'calendar' : 'dollar-sign'} className="w-4 h-4 mr-3"></i>
+                                    {item.toUpperCase()}
                                 </button>
                             ))}
                         </nav>
+                        <div className="p-6 bg-black/20 text-[10px] italic">Subsidiary of Alpine Virtual</div>
                     </aside>
 
-                    {/* MAIN */}
-                    <div className="flex-1 flex flex-col min-w-0 bg-[#f8fafc]">
-                        <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-10">
-                            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                                <span>ALPINE OPERATIONS</span> <i data-lucide="chevron-right" className="w-4 h-4"></i> <span className="text-slate-900 uppercase">{activeTab}</span>
-                            </div>
-                            <div className="flex items-center gap-4 bg-emerald-50 px-4 py-2 rounded-full border border-emerald-100">
-                                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span className="text-[10px] font-black text-emerald-700 uppercase">QB Sync: Active</span>
+                    {/* CONTENT */}
+                    <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+                            <div className="text-xs font-bold text-slate-400">TENANT: ACME_CORP_01</div>
+                            <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500"></span> QB Integrated
                             </div>
                         </header>
 
-                        <main className="p-10 overflow-y-auto flex-1">
-                            {/* TIMEKEEPING MODULE */}
-                            {activeTab === 'Time' && (
-                                <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
-                                    <div className="text-center space-y-4">
-                                        <div className="text-7xl font-black text-slate-900 tracking-tighter tabular-nums">{currentTime}</div>
-                                        <p className="text-slate-400 font-bold uppercase text-[11px] tracking-[0.3em]">Current Session Status: <span className="text-sky-600 underline">{clockStatus}</span></p>
+                        <main className="flex-1 overflow-y-auto p-10 bg-slate-50">
+                            {/* TIME MODULE */}
+                            {view === 'Time' && (
+                                <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
+                                    <div className="bg-white p-12 rounded-[2rem] shadow-xl border border-slate-200 text-center">
+                                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-4 text-center">Digital Punch Card</h2>
+                                        <div className="text-6xl font-black text-slate-900 mb-10 tracking-tighter tabular-nums">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                        
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                                            <button onClick={() => triggerPunch('IN')} disabled={clockState !== 'OUT'} className="punch-card bg-white p-6 rounded-2xl flex flex-col items-center gap-2 disabled:opacity-30">
+                                                <i data-lucide="log-in" className="text-green-500"></i><span className="text-[10px] font-bold uppercase">In</span>
+                                            </button>
+                                            <button onClick={() => triggerPunch('BREAK IN')} disabled={clockState !== 'IN'} className="punch-card bg-white p-6 rounded-2xl flex flex-col items-center gap-2 disabled:opacity-30">
+                                                <i data-lucide="coffee" className="text-amber-500"></i><span className="text-[10px] font-bold uppercase">Break In</span>
+                                            </button>
+                                            <button onClick={() => triggerPunch('BREAK OUT')} disabled={clockState !== 'BREAK'} className="punch-card bg-white p-6 rounded-2xl flex flex-col items-center gap-2 disabled:opacity-30">
+                                                <i data-lucide="refresh-cw" className="text-amber-500"></i><span className="text-[10px] font-bold uppercase">Break Out</span>
+                                            </button>
+                                            <button onClick={() => triggerPunch('LUNCH IN')} disabled={clockState !== 'IN'} className="punch-card bg-white p-6 rounded-2xl flex flex-col items-center gap-2 disabled:opacity-30">
+                                                <i data-lucide="utensils" className="text-orange-500"></i><span className="text-[10px] font-bold uppercase">Lunch In</span>
+                                            </button>
+                                            <button onClick={() => triggerPunch('LUNCH OUT')} disabled={clockState !== 'LUNCH'} className="punch-card bg-white p-6 rounded-2xl flex flex-col items-center gap-2 disabled:opacity-30">
+                                                <i data-lucide="check-circle" className="text-orange-500"></i><span className="text-[10px] font-bold uppercase">Lunch Out</span>
+                                            </button>
+                                            <button onClick={() => triggerPunch('OUT')} disabled={clockState === 'OUT'} className="punch-card bg-slate-900 text-white p-6 rounded-2xl flex flex-col items-center gap-2">
+                                                <i data-lucide="log-out" className="text-rose-400"></i><span className="text-[10px] font-bold uppercase">Out</span>
+                                            </button>
+                                        </div>
                                     </div>
-
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                                        <button onClick={() => handlePunch('In')} disabled={clockStatus !== 'Out'} className="punch-btn bg-white p-8 rounded-[2rem] flex flex-col items-center gap-3 group disabled:opacity-30">
-                                            <div className="p-4 bg-green-50 text-green-600 rounded-2xl group-hover:bg-green-600 group-hover:text-white transition-all"><i data-lucide="play"></i></div>
-                                            <span className="font-black text-xs uppercase tracking-widest">Clock In</span>
-                                        </button>
-                                        <button onClick={() => handlePunch('Break In')} disabled={clockStatus !== 'In'} className="punch-btn bg-white p-8 rounded-[2rem] flex flex-col items-center gap-3 group disabled:opacity-30">
-                                            <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl group-hover:bg-amber-600 group-hover:text-white transition-all"><i data-lucide="coffee"></i></div>
-                                            <span className="font-black text-xs uppercase tracking-widest">Break In</span>
-                                        </button>
-                                        <button onClick={() => handlePunch('Break Out')} disabled={clockStatus !== 'Break'} className="punch-btn bg-white p-8 rounded-[2rem] flex flex-col items-center gap-3 group disabled:opacity-30">
-                                            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all"><i data-lucide="rotate-ccw"></i></div>
-                                            <span className="font-black text-xs uppercase tracking-widest">Break Out</span>
-                                        </button>
-                                        <button onClick={() => handlePunch('Lunch In')} disabled={clockStatus !== 'In'} className="punch-btn bg-white p-8 rounded-[2rem] flex flex-col items-center gap-3 group disabled:opacity-30">
-                                            <div className="p-4 bg-orange-50 text-orange-600 rounded-2xl group-hover:bg-orange-600 group-hover:text-white transition-all"><i data-lucide="utensils"></i></div>
-                                            <span className="font-black text-xs uppercase tracking-widest">Lunch In</span>
-                                        </button>
-                                        <button onClick={() => handlePunch('Lunch Out')} disabled={clockStatus !== 'Lunch'} className="punch-btn bg-white p-8 rounded-[2rem] flex flex-col items-center gap-3 group disabled:opacity-30">
-                                            <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all"><i data-lucide="history"></i></div>
-                                            <span className="font-black text-xs uppercase tracking-widest">Lunch Out</span>
-                                        </button>
-                                        <button onClick={() => handlePunch('Out')} disabled={clockStatus === 'Out'} className="punch-btn bg-slate-900 p-8 rounded-[2rem] flex flex-col items-center gap-3 group text-white">
-                                            <div className="p-4 bg-white/10 text-white rounded-2xl group-hover:bg-rose-500 transition-all"><i data-lucide="square"></i></div>
-                                            <span className="font-black text-xs uppercase tracking-widest">Clock Out</span>
-                                        </button>
-                                    </div>
-
-                                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                                        <div className="p-6 border-b border-slate-100 font-bold text-sm uppercase text-slate-400 tracking-widest">Today's Activity Log</div>
-                                        <div className="divide-y divide-slate-50 max-h-60 overflow-y-auto">
-                                            {logs.length === 0 ? <p className="p-10 text-center text-slate-300 italic">No punches recorded yet.</p> : logs.map(l => (
-                                                <div key={l.id} className="p-4 px-8 flex justify-between items-center bg-white hover:bg-slate-50">
-                                                    <span className="font-bold text-slate-900 uppercase text-xs">{l.type}</span>
-                                                    <span className="text-slate-400 font-mono text-xs">{l.time}</span>
+                                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                        <div className="px-6 py-4 bg-slate-50 border-b font-bold text-[10px] uppercase text-slate-400">Recent Session Activity</div>
+                                        <div className="divide-y max-h-48 overflow-auto">
+                                            {punches.length === 0 ? <div className="p-8 text-center text-slate-400 text-xs italic">No activity recorded for this shift.</div> : 
+                                            punches.map(p => (
+                                                <div key={p.id} className="px-6 py-3 flex justify-between items-center text-xs">
+                                                    <span className="font-bold text-slate-700">{p.action}</span>
+                                                    <span className="text-slate-400 font-mono">{p.time}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -145,42 +138,83 @@
                             )}
 
                             {/* ABSENCE MODULE */}
-                            {activeTab === 'Absence' && (
-                                <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
-                                    <div className="flex justify-between items-end">
-                                        <div><h2 className="text-3xl font-black text-slate-900 tracking-tighter italic">Leave Management</h2><p className="text-slate-500 text-sm font-medium">Filing, approval, and absence tracking.</p></div>
-                                        <button onClick={fileLeave} className="bg-sky-600 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-xl shadow-sky-600/20 flex items-center gap-2 hover:bg-sky-700 transition-all">
-                                            <i data-lucide="file-text" className="w-4 h-4"></i> File Leave Request
+                            {view === 'Absence' && (
+                                <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-2xl font-black tracking-tight">Leave Management</h2>
+                                        <button onClick={() => setLeaves([{id: Date.now(), type: 'Vacation', date: '2026-04-10', status: 'Pending'}, ...leaves])} 
+                                                className="bg-sky-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-sky-700 transition-all shadow-lg shadow-sky-600/20">
+                                            + File New Leave
                                         </button>
                                     </div>
-
-                                    <div className="grid grid-cols-3 gap-6">
-                                        <div className="bg-white p-6 rounded-3xl border border-slate-200">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vacation Balance</p>
-                                            <p className="text-2xl font-black">12 Days</p>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4">Leave Status</h4>
+                                            <div className="space-y-4">
+                                                {leaves.map(l => (
+                                                    <div key={l.id} className="flex justify-between items-center border-b border-slate-50 pb-3">
+                                                        <div>
+                                                            <p className="text-sm font-bold text-slate-800 italic">{l.type}</p>
+                                                            <p className="text-[10px] text-slate-400">{l.date}</p>
+                                                        </div>
+                                                        <span className={`status-pill ${l.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{l.status}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="bg-white p-6 rounded-3xl border border-slate-200">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sick Days Used</p>
-                                            <p className="text-2xl font-black">2 Days</p>
-                                        </div>
-                                        <div className="bg-white p-6 rounded-3xl border border-slate-200">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Upcoming Leave</p>
-                                            <p className="text-2xl font-black text-sky-600">Apr 01</p>
+                                        <div className="bg-sky-900 text-white p-8 rounded-2xl relative overflow-hidden flex flex-col justify-center">
+                                            <i data-lucide="info" className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10"></i>
+                                            <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-2">PoC Policy</p>
+                                            <p className="text-sm font-medium leading-relaxed italic text-sky-100">Leaves recorded here are automatically transmitted to the Payroll Engine for pay reconciliation.</p>
                                         </div>
                                     </div>
+                                </div>
+                            )}
 
-                                    <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden text-sm">
+                            {/* PAYROLL MODULE */}
+                            {view === 'Payroll' && (
+                                <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500">
+                                    <div className="flex justify-between items-end mb-4">
+                                        <div>
+                                            <h2 className="text-3xl font-black tracking-tight">Payroll Engine</h2>
+                                            <p className="text-slate-500 text-xs font-medium">Reconciled Financial Ledger</p>
+                                        </div>
+                                        <button className="bg-[#2ca01c] text-white px-6 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 hover:bg-green-700 transition-all shadow-xl shadow-green-600/20">
+                                            <i data-lucide="refresh-cw" className="w-4 h-4"></i> Sync All to QuickBooks
+                                        </button>
+                                    </div>
+                                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                                         <table className="w-full text-left">
-                                            <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                                                <tr><th className="px-8 py-5">Staff member</th><th className="px-8 py-5">Type</th><th className="px-8 py-5">Dates</th><th className="px-8 py-5 text-right">Status</th></tr>
+                                            <thead className="bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                <tr>
+                                                    <th className="px-8 py-4">Employee</th>
+                                                    <th className="px-8 py-4 text-center">Base Data</th>
+                                                    <th className="px-8 py-4 text-center">Absence Impact</th>
+                                                    <th className="px-8 py-4 text-right">Net Payable</th>
+                                                </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
-                                                {leaves.map(l => (
-                                                    <tr key={l.id} className="hover:bg-slate-50/50 transition-all">
-                                                        <td className="px-8 py-6 font-bold text-slate-900 italic">{l.staff}</td>
-                                                        <td className="px-8 py-6 uppercase text-[10px] font-black tracking-widest text-slate-500">{l.type}</td>
-                                                        <td className="px-8 py-6 text-slate-400 font-medium">{l.start} to {l.end}</td>
-                                                        <td className="px-8 py-6 text-right"><span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${l.status === 'Approved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{l.status}</span></td>
+                                                {staff.map(s => (
+                                                    <tr key={s.id} className="hover:bg-slate-50/50 transition-all">
+                                                        <td className="px-8 py-6">
+                                                            <p className="text-sm font-bold text-slate-900 italic">{s.name}</p>
+                                                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">{s.role}</p>
+                                                        </td>
+                                                        <td className="px-8 py-6 text-center">
+                                                            <div className="text-sm font-bold text-slate-700">{s.activeHours}h</div>
+                                                            <div className="text-[10px] text-slate-400 font-black">${s.rate}/hr</div>
+                                                        </td>
+                                                        <td className="px-8 py-6 text-center">
+                                                            {s.leaveDays > 0 ? (
+                                                                <span className="bg-rose-50 text-rose-600 px-3 py-1 rounded-full text-[10px] font-black border border-rose-100">-{s.leaveDays * 8}h Unpaid Leave</span>
+                                                            ) : (
+                                                                <span className="text-slate-300 text-[10px] font-bold uppercase tracking-widest">No Impact</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-8 py-6 text-right">
+                                                            <p className="text-xl font-black text-slate-900 tracking-tighter">${calculatePay(s.rate, s.activeHours, s.leaveDays).toLocaleString()}</p>
+                                                            <p className="text-[9px] text-emerald-600 font-bold uppercase">Ready for Sync</p>
+                                                        </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -189,12 +223,12 @@
                                 </div>
                             )}
 
-                            {/* PLACEHOLDERS FOR REMAINING */}
-                            {(activeTab === 'HCM' || activeTab === 'Payroll') && (
-                                <div className="text-center py-40 bg-white rounded-[3rem] border border-slate-200 shadow-sm">
-                                    <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300"><i data-lucide="layers"></i></div>
-                                    <h2 className="text-2xl font-black text-slate-900 tracking-tighter italic">{activeTab} Interface Ready</h2>
-                                    <p className="text-slate-400 max-w-sm mx-auto text-sm">Full Administrative logic prepared for Supabase data hydration.</p>
+                            {/* HCM MODULE */}
+                            {view === 'HCM' && (
+                                <div className="text-center py-40 animate-in fade-in duration-500">
+                                    <div className="h-20 w-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300"><i data-lucide="users" className="w-10 h-10"></i></div>
+                                    <h2 className="text-2xl font-black tracking-tighter italic">HCM Directory Infrastructure</h2>
+                                    <p className="text-slate-400 text-sm max-w-sm mx-auto font-medium mt-2 italic underline">PoC Logic: This view will pull real-time staff profiles from the Supabase 'Staff' table.</p>
                                 </div>
                             )}
                         </main>
